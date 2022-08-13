@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 import boto3
@@ -23,7 +24,7 @@ def lambda_handler(event: dict[str, str], context: str) -> Dict[str, Any]:
     response = boto3.client("ec2", region_name="ap-northeast-1").describe_instances(
         Filters=[_filters]
     )
-    logger.info(response)
+    logger.info(json.dumps(response, cls=CustomJSONEncoder))
 
     instances: List[Instance] = []
     for _ele in response["Reservations"]:
@@ -38,3 +39,13 @@ def lambda_handler(event: dict[str, str], context: str) -> Dict[str, Any]:
         "statusCode": 200,
         "body": response_body,
     }
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if hasattr(o, "__iter__"):
+            return list(o)
+        elif isinstance(o, (datetime, date)):
+            return o.isoformat()
+        else:
+            return str(o)

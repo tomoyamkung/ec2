@@ -5,18 +5,26 @@ from typing import Any, Dict, List, Optional
 
 import boto3
 
+from command import Command
 from data import Instance
 from execution_environment import Environment
 
 
 def lambda_handler(event: dict[str, str], context: str) -> Dict[str, Any]:
-    # { "env": "dev" }
+    # { "command": "list", "env": "dev" }
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     logger.info(json.dumps(event))
 
     # if "challenge" in event:
     #     return event.get("challenge")
+
+    _command: Optional[Command] = Command.get_by(event.get("command"))
+    if _command is None:
+        return {
+            "statusCode": 400,
+            "body": "Specify the first argument command.",
+        }
 
     _env: Optional[Environment] = Environment.get_by(event.get("env"))
     _filters = _env.to_filter if _env else {}

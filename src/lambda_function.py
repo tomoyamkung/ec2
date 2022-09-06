@@ -5,21 +5,45 @@ from typing import Any, Dict, List, Optional
 
 import boto3
 
+from command import Command
 from data import Instance
 from execution_environment import Environment
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 def lambda_handler(event: dict[str, str], context: str) -> Dict[str, Any]:
-    # { "env": "dev" }
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    # { "command": "list", "env": "dev" }
     logger.info(json.dumps(event))
 
     # if "challenge" in event:
     #     return event.get("challenge")
 
-    _env: Optional[Environment] = Environment.get_by(event.get("env"))
-    _filters = _env.to_filter if _env else {}
+    _command: Optional[Command] = Command.get_by(event.get("command"))
+    if _command is None:
+        return {
+            "statusCode": 400,
+            "body": "Specify the first argument command.",
+        }
+
+    if _command == Command.LIST:
+        response_body = get_list(Environment.get_by(event.get("env")))
+        logger.info(response_body)
+
+        return {
+            "statusCode": 200,
+            "body": response_body,
+        }
+
+    return {
+        "statusCode": 501,
+        "body": "Not Implemented.",
+    }
+
+
+def get_list(env: Optional[Environment]) -> str:
+    _filters = env.to_filter if env else {}
 
     response = boto3.client("ec2", region_name="ap-northeast-1").describe_instances(
         Filters=[_filters]
@@ -33,12 +57,7 @@ def lambda_handler(event: dict[str, str], context: str) -> Dict[str, Any]:
     response_body = "\n".join(
         [str(e) for e in sorted(instances, key=lambda instance: instance.name)]
     )
-    logger.info(response_body)
-
-    return {
-        "statusCode": 200,
-        "body": response_body,
-    }
+    return response_body
 
 
 class CustomJSONEncoder(json.JSONEncoder):
